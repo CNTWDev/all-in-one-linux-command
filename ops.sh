@@ -168,13 +168,15 @@ fits_cell() {
 
 grid_row() {
     local left="$1" right="$2" divider="$3" edge="$4" capacity="$5"
-    printf '%s%s|%s' "$screen_indent" "$DIM" "$RESET"
-    [[ -z "$left" ]] || row "$left" "$capacity"
+    # 竖线从行首定位，避免两侧文字的显示宽度影响边框。
+    printf '%s%s|%s' "$edge" "$DIM" "$RESET"
     if [[ -n "$divider" ]]; then
-        printf '%s%s|%s' "$divider" "$DIM" "$RESET"
+        printf '\r%s%s|%s' "$divider" "$DIM" "$RESET"
         [[ -z "$right" ]] || row "$right" "$capacity"
     fi
-    printf '%s%s|%s\n' "$edge" "$DIM" "$RESET"
+    printf '\r%s%s|%s' "$screen_indent" "$DIM" "$RESET"
+    [[ -z "$left" ]] || row "$left" "$capacity"
+    printf '\r\n'
 }
 
 menu_grid() {
@@ -193,8 +195,8 @@ menu_grid() {
             if $section_started; then
                 printf '%s\n' "$line"
             fi
-            printf '%s%s|%s  %s%s%s%s%s|%s\n' \
-                "$screen_indent" "$DIM" "$RESET" "$BOLD" "$item" "$RESET" "$edge" "$DIM" "$RESET"
+            printf '%s%s|%s\r%s%s|%s  %s%s%s\r\n' \
+                "$edge" "$DIM" "$RESET" "$screen_indent" "$DIM" "$RESET" "$BOLD" "$item" "$RESET"
         elif [[ -z "$divider" ]]; then
             grid_row "$item" '' '' "$edge" "$capacity"
         elif [[ -z "$pending" ]]; then
@@ -930,7 +932,7 @@ register_system_settings() {
         register_menu_item system-settings '系统日志' 9 '按天数清理归档日志' system_journal_vacuum
     fi
     if $available; then
-        register_main_tool "$1" 44 '系统设置' system_settings_menu '主机名、时区与日志'
+        register_main_tool "$1" 44 '系统设置' system_settings_menu '主机名 / 时区 / 日志'
     fi
 }
 
