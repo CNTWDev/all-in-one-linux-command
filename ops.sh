@@ -861,6 +861,14 @@ nft_rules_file() {
 }
 
 # ---------- 系统 / 基础工具 ----------
+installed_ops() {
+    [[ -n "${OPS_INSTALL_LAUNCHER:-}" && -f "$script_dir/install.sh" ]]
+}
+
+update_ops_menu() {
+    run_cmd bash "$script_dir/install.sh" --update "$OPS_INSTALL_LAUNCHER"
+}
+
 install_bt_panel() {
     local installer command
     format_command installer '%q ' "${admin_prefix[@]}" bash install_panel.sh ed8484bec
@@ -1060,6 +1068,9 @@ register_builtin_menus() {
     if command -v npm >/dev/null 2>&1; then
         register_menu_item main "$system_group" 34 '升级全局 npm' update_npm '12.0.1'
     fi
+    if installed_ops; then
+        register_main_tool "$system_group" 35 '升级运维工作台' update_ops_menu 'ops update'
+    fi
 }
 
 load_extensions() {
@@ -1077,6 +1088,26 @@ load_extensions() {
 main() {
     local script_dir choice extension_dir
     script_dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || return 1
+    if (($# > 0)); then
+        case "$#:$1" in
+            1:update)
+                if ! installed_ops; then
+                    printf '请先使用安装命令部署运维工作台，再运行 ops update。\n' >&2
+                    return 1
+                fi
+                bash "$script_dir/install.sh" --update "$OPS_INSTALL_LAUNCHER"
+                return $?
+                ;;
+            1:-h|1:--help)
+                printf 'ops          打开运维菜单\nops update   升级运维工作台\n'
+                return 0
+                ;;
+            *)
+                printf '用法：ops [update|--help]\n' >&2
+                return 2
+                ;;
+        esac
+    fi
     extension_dir=${OPS_EXTENSION_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/all-in-one-linux-command/ops.d}
     register_builtin_menus
     if [[ "${OPS_LOAD_PROJECTS:-1}" != 0 ]]; then

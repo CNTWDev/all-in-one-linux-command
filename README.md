@@ -12,7 +12,17 @@ bash -c 'installer=$(curl -fsSL https://raw.githubusercontent.com/CNTWDev/all-in
 
 安装后运行 `ops`。如果 `~/.local/bin` 尚未加入 `PATH`，可先运行 `~/.local/bin/ops`，也可以将 `export PATH="$HOME/.local/bin:$PATH"` 写入自己的 shell 启动文件。
 
-再次执行安装命令会升级到 GitHub `main` 的最新版本，本机扩展会保留。从源码目录执行 `bash install.sh` 则安装当前目录里的版本。也可以直接运行 `./ops.sh`，旧入口 `./server-ops-menu.sh` 仍可用。只复制 `ops.sh` 就能运行通用菜单。
+从源码目录执行 `bash install.sh` 可安装当前目录里的版本。也可以直接运行 `./ops.sh`，旧入口 `./server-ops-menu.sh` 仍可用。只复制 `ops.sh` 就能运行通用菜单。
+
+## 升级
+
+```bash
+ops update
+```
+
+也可以打开 `ops`，选择系统工具里的 **35 升级运维工作台**。升级会下载 GitHub `main` 的最新版本，复用当前安装位置并保留本机扩展。升级后重新打开 `ops` 即可使用新版。
+
+早期版本需要先重新执行一次上方的一键安装命令，之后就可以直接用 `ops update`。
 
 ## 主菜单
 
@@ -28,7 +38,7 @@ bash -c 'installer=$(curl -fsSL https://raw.githubusercontent.com/CNTWDev/all-in
 | **45 软件包** | 用 APT 或 DNF 查看、安装和卸载指定包，以及刷新索引 |
 | **46 计划任务** | 查看或编辑当前用户的 crontab，查看 systemd 定时器 |
 
-入口按本机命令可用性显示。如果扩展已占用 `41`–`46` 中的编号，新通用入口会使用其他空闲编号。服务、容器、系统设置和防火墙变更会先显示完整命令，输入 `y` 执行。需要管理员权限的通用操作在非 root 账户下使用本机的 `sudo`。容器操作和 crontab 操作使用启动 `ops` 的账户。
+入口按本机命令可用性显示。如果扩展已占用 `35` 或 `41`–`46` 中的编号，新通用入口会使用其他空闲编号。服务、容器、系统设置和防火墙变更会先显示完整命令，输入 `y` 执行。需要管理员权限的通用操作在非 root 账户下使用本机的 `sudo`。容器操作和 crontab 操作使用启动 `ops` 的账户。
 
 VPN 的 `1`–`8` 继续直达对应升级操作。HushClaw 和 AIStudy 入口由随仓库分发的扩展提供。AIStudy 的 `24` 可编辑和备份配置，`25` 安装主题，`26` 查看服务状态。
 
