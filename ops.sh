@@ -861,6 +861,19 @@ nft_rules_file() {
 }
 
 # ---------- 系统 / 基础工具 ----------
+run_products() {
+    if [[ ! -f "$script_dir/ops.d/products.py" ]] || ! command -v python3 >/dev/null 2>&1; then
+        printf '产品管理需要完整安装 ops，并提供 Python 3.8 或以上版本。\n' >&2
+        return 1
+    fi
+    python3 -I "$script_dir/ops.d/products.py" "$@"
+}
+
+products_menu() {
+    screen '本机产品'
+    run_products product menu
+}
+
 installed_ops() {
     [[ -n "${OPS_INSTALL_LAUNCHER:-}" && -f "$script_dir/install.sh" ]]
 }
@@ -1058,6 +1071,9 @@ register_builtin_menus() {
     fi
 
     register_management_menus
+    if [[ -f "$script_dir/ops.d/products.py" ]] && command -v python3 >/dev/null 2>&1; then
+        register_main_tool '通用运维' 47 '产品管理' products_menu '登记命令与配置'
+    fi
     if command -v wget >/dev/null 2>&1; then
         register_menu_item main "$system_group" 31 '安装宝塔面板' install_bt_panel
     fi
@@ -1089,6 +1105,9 @@ main() {
     local script_dir choice extension_dir
     script_dir=$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd) || return 1
     if (($# > 0)); then
+        case "$1" in
+            product|config) run_products "$@"; return $? ;;
+        esac
         case "$#:$1" in
             1:update)
                 if ! installed_ops; then
@@ -1100,10 +1119,11 @@ main() {
                 ;;
             1:-h|1:--help)
                 printf 'ops          打开运维菜单\nops update   升级运维工作台\n'
+                printf 'ops product  管理产品清单\nops config   管理产品配置\n'
                 return 0
                 ;;
             *)
-                printf '用法：ops [update|--help]\n' >&2
+                printf '用法：ops [update|product|config|--help]\n' >&2
                 return 2
                 ;;
         esac

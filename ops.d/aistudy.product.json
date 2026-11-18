@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "aistudy",
+  "name": "AIStudy",
+  "directory": "/opt/aistudy",
+  "actions": {
+    "status": {"kind": "systemd.status", "label": "查看服务状态", "unit": "aistudy.service"},
+    "restart": {"kind": "systemd.restart", "label": "重启服务", "unit": "aistudy.service"},
+    "upgrade": {"kind": "command", "label": "升级 AIStudy", "argv": ["sudo", "./install.sh", "upgrade"]}
+  },
+  "configs": {
+    "llm": {
+      "path": "config/llm.toml",
+      "format": "toml",
+      "fields": {
+        "default": {"type": "string"},
+        "daily_limit_per_kid": {"type": "integer"},
+        "cache": {"type": "boolean"},
+        "providers.deepseek.api_key": {"type": "string", "secret": true}
+      }
+    },
+    "mail": {
+      "path": "config/mail.toml",
+      "format": "toml",
+      "fields": {
+        "provider": {"type": "string"},
+        "smtp.host": {"type": "string"},
+        "smtp.port": {"type": "integer"},
+        "smtp.password": {"type": "string", "secret": true}
+      }
+    },
+    "tts": {
+      "path": "config/tts.toml",
+      "format": "toml",
+      "fields": {
+        "provider": {"type": "string"},
+        "max_chars": {"type": "integer"},
+        "cartesia.api_key": {"type": "string", "secret": true}
+      }
+    }
+  }
+}

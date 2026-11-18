@@ -37,8 +37,9 @@ ops update
 | **44 系统设置** | 改主机名和时区、切换 NTP、查看日志占用并按天数清理已归档的日志 |
 | **45 软件包** | 用 APT 或 DNF 查看、安装和卸载指定包，以及刷新索引 |
 | **46 计划任务** | 查看或编辑当前用户的 crontab，查看 systemd 定时器 |
+| **47 产品管理** | 新增产品、登记命令、绑定配置、编辑字段和恢复备份 |
 
-入口按本机命令可用性显示。如果扩展已占用 `35` 或 `41`–`46` 中的编号，新通用入口会使用其他空闲编号。服务、容器、系统设置和防火墙变更会先显示完整命令，输入 `y` 执行。需要管理员权限的通用操作在非 root 账户下使用本机的 `sudo`。容器操作和 crontab 操作使用启动 `ops` 的账户。
+入口按本机命令可用性显示。如果扩展已占用 `35` 或 `41`–`47` 中的编号，新通用入口会使用其他空闲编号。服务、容器、系统设置和防火墙变更会先显示完整命令，输入 `y` 执行。需要管理员权限的通用操作在非 root 账户下使用本机的 `sudo`。容器操作和 crontab 操作使用启动 `ops` 的账户。
 
 VPN 的 `1`–`8` 继续直达对应升级操作。HushClaw 和 AIStudy 入口由随仓库分发的扩展提供。AIStudy 的 `24` 可编辑和备份配置，`25` 安装主题，`26` 查看服务状态。
 
@@ -69,6 +70,37 @@ Docker、systemd、DNS / HTTP 和 `nc`、`lsof`、`iostat` 等工具的入口随
 在交互终端里，进程排行的条形长度相对各榜首位，磁盘空间和 inode 的条形表示实际使用率。磁盘使用率达到 75% 显示黄色，达到 90% 显示红色。可用 `NO_COLOR=1 ops` 查看无颜色的条形图。重定向输出时仅保留纯文本。
 
 ## 给不同服务器加菜单
+
+打开 **47 产品管理**，可通过向导新增产品，随后登记命令或绑定机器上的配置文件。产品管理需要 Python 3.8 或以上版本。JSON 配置可直接编辑，TOML 首次使用时选「安装 TOML 编辑组件」，或运行 `ops product setup`。
+
+产品清单登记文件路径、可管理字段和命令，产品继续使用原配置文件。登记字段后可以查看、新增值或修改值。字段显式设置 `"delete": true` 后才可删除。保存前可预览差异，保存时备份原文件，配置菜单可恢复最近备份。密钥和密码字段在查看和预览时脱敏，可通过终端隐藏输入或 `--stdin` 更新。解除配置登记或移除产品登记只删除菜单记录。
+
+### 用 AI 生成产品清单
+
+先获取示例和字段结构，再把输出、服务名和要登记的命令交给 AI。字段检查只输出可管理的字段路径和类型。
+
+```bash
+ops product template aistudy > aistudy.json
+ops config inspect /opt/aistudy/config/llm.toml --keys-only
+```
+
+清单的 `schema_version` 为 `1`，包含产品 `id`、`name`、`directory`、`actions` 和 `configs`。配置路径、命令工作目录支持绝对路径或相对于 `directory` 的路径。字段支持点分隔路径和 `string`、`integer`、`number`、`boolean` 四种类型，可用 `secret` 标记需脱敏的字段。命令支持 `systemd.status`、`systemd.restart` 和 `command`。自定义命令用 `argv` 数组登记参数，例如 `["docker", "compose", "ps"]`。查询命令可显式设置 `"change": false`，其余命令在终端确认后执行。凭据通过产品配置提供。
+
+```bash
+ops product validate aistudy.json
+ops product import aistudy.json --dry-run
+ops product import aistudy.json
+ops product export aistudy > aistudy.export.json
+ops product run aistudy status --dry-run
+ops config get aistudy llm daily_limit_per_kid
+ops config set aistudy llm daily_limit_per_kid 30 --dry-run
+```
+
+按实际服务器修改示例里的目录和服务名。导入会检查已绑定的文件和现有字段类型，登记后从产品菜单运行命令。更新已有清单时使用 `ops product import 文件 --replace`。配置命令也提供 `list`、`delete` 和 `restore`，可通过 `ops config --help` 查看。
+
+产品清单和备份默认保存在 `${XDG_CONFIG_HOME:-$HOME/.config}/all-in-one-linux-command/products/`，可用 `OPS_PRODUCTS_DIR` 指定其他目录。升级 `ops` 时会保留这些文件。配置编辑使用运行 `ops` 的账户权限。
+
+### Bash 扩展
 
 本机扩展默认放在 `~/.config/all-in-one-linux-command/ops.d/`。如果设置了 `XDG_CONFIG_HOME`，则使用其中的 `all-in-one-linux-command/ops.d/`。也可以通过 `OPS_EXTENSION_DIR` 指定整套本机扩展的位置。将自己维护的 `.sh` 文件放进去，重开 `ops` 即生效。
 
