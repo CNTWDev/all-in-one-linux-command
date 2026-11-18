@@ -27,7 +27,6 @@ if ((EUID != 0)) && command -v sudo >/dev/null 2>&1; then
 fi
 
 menu_items=()
-movable_menu_items=()
 
 find_menu_item() {
     local position registered_menu registered_group registered_number unused
@@ -41,15 +40,6 @@ find_menu_item() {
     return 1
 }
 
-move_main_tool() {
-    local item_index="$1" fallback=70 in_use current_menu group old_number rest
-    while find_menu_item main "$fallback" in_use; do
-        ((fallback += 1))
-    done
-    IFS='|' read -r current_menu group old_number rest <<< "${menu_items[item_index]}"
-    menu_items[item_index]="$current_menu|$group|$fallback|$rest"
-}
-
 # register_menu_item <菜单> <分组或空串> <编号> <名称> <函数> [说明] [函数参数]
 # 主菜单使用 main。扩展可用自己的菜单名登记子项，再用 open_menu 打开。
 register_menu_item() {
@@ -59,26 +49,34 @@ register_menu_item() {
         printf '菜单项无效 %s / %s / %s\n' "$menu" "$number" "$handler" >&2
         return 1
     fi
+    if [[ "$menu" == main && "${loading_local_extensions:-false}" == true ]] &&
+        [[ ${#number} -lt 3 || "$number" == 1?? ]]; then
+        # 等本机扩展的显式高位编号登记完，再迁移旧编号。
+        number="legacy:$number"
+    fi
     if find_menu_item "$menu" "$number" existing_index; then
-        if [[ "${movable_menu_items[existing_index]:-}" == true ]]; then
-            move_main_tool "$existing_index"
-        else
-            printf '菜单编号重复 %s / %s\n' "$menu" "$number" >&2
-            return 1
-        fi
+        printf '菜单编号重复 %s / %s\n' "$menu" "$number" >&2
+        return 1
     fi
     menu_items+=("$menu|$group|$number|$name|$handler|$argument|$detail")
 }
 
-register_main_tool() {
-    local new_index=${#menu_items[@]}
-    register_menu_item main "$@" || return 1
-    movable_menu_items[new_index]=true
+assign_legacy_main_numbers() {
+    local index menu group number rest in_use
+    for index in "${!menu_items[@]}"; do
+        IFS='|' read -r menu group number rest <<< "${menu_items[index]}"
+        [[ "$menu" == main && "$number" == legacy:* ]] || continue
+        number=$((200 + ${number#legacy:}))
+        while find_menu_item main "$number" in_use; do
+            ((number += 1))
+        done
+        menu_items[index]="$menu|$group|$number|$rest"
+    done
 }
 
 menu_rows() {
     local item menu group number name handler argument detail previous_group=''
-    for item in "${menu_items[@]}"; do
+    while IFS= read -r item; do
         IFS='|' read -r menu group number name handler argument detail <<< "$item"
         [[ "$menu" == "$1" ]] || continue
         if [[ -n "$group" && "$group" != "$previous_group" ]]; then
@@ -86,7 +84,13 @@ menu_rows() {
         fi
         printf '%s|%s|%s\n' "$number" "$name" "$detail"
         previous_group=$group
-    done
+    done < <(
+        if [[ "$1" == main ]]; then
+            printf '%s\n' "${menu_items[@]}" | LC_ALL=C sort -t '|' -k3,3n
+        else
+            printf '%s\n' "${menu_items[@]}"
+        fi
+    )
 }
 
 dispatch_menu() {
@@ -927,7 +931,7 @@ register_firewall_menus() {
         register_menu_item firewall-nftables '' 3 '检查并应用规则文件' nft_rules_file '' apply
     fi
     if $available; then
-        register_main_tool "$1" 41 '防火墙' firewall_menu '规则与端口' '返回主菜单'
+        register_menu_item main "$1" 41 '防火墙' firewall_menu '规则与端口' '返回主菜单'
         register_menu_item linux-network '' 3 '防火墙' firewall_menu '' '返回网络与监听'
     fi
 }
@@ -953,7 +957,7 @@ register_system_settings() {
         register_menu_item system-settings '系统日志' 9 '按天数清理归档日志' system_journal_vacuum
     fi
     if $available; then
-        register_main_tool "$1" 44 '系统设置' system_settings_menu '主机名 / 时区 / 日志'
+        register_menu_item main "$1" 44 '系统设置' system_settings_menu '主机名 / 时区 / 日志'
     fi
 }
 
@@ -965,7 +969,7 @@ register_package_menus() {
     else
         return 0
     fi
-    register_main_tool "$1" 45 '软件包' system_packages_menu "$package_manager"
+    register_menu_item main "$1" 45 '软件包' system_packages_menu "$package_manager"
     register_menu_item packages '' 1 '查看指定软件包' system_package_action '' info
     register_menu_item packages '' 2 '刷新软件包索引' system_package_refresh
     register_menu_item packages '' 3 '安装指定软件包' system_package_action '' install
@@ -977,7 +981,7 @@ register_management_menus() {
     register_menu_item main "$group" 40 'Linux 排障' linux_menu
     register_firewall_menus "$group"
     if command -v systemctl >/dev/null 2>&1; then
-        register_main_tool "$group" 42 '服务管理' linux_service_menu 'systemd' '返回主菜单'
+        register_menu_item main "$group" 42 '服务管理' linux_service_menu 'systemd' '返回主菜单'
         register_menu_item linux-services '状态与日志' 3 '列出已加载的服务' linux_list_services
         register_menu_item linux-services '服务操作' 4 '启动服务' linux_service_change '' start
         register_menu_item linux-services '服务操作' 5 '停止服务' linux_service_change '' stop
@@ -987,7 +991,7 @@ register_management_menus() {
         register_menu_item linux-services '服务操作' 9 '取消开机启动' linux_service_change '' disable
     fi
     if command -v docker >/dev/null 2>&1; then
-        register_main_tool "$group" 43 'Docker 容器' linux_docker_menu '' '返回主菜单'
+        register_menu_item main "$group" 43 'Docker 容器' linux_docker_menu '' '返回主菜单'
         register_menu_item linux-docker '容器操作' 6 '启动容器' linux_docker_change '' start
         register_menu_item linux-docker '容器操作' 7 '停止容器' linux_docker_change '' stop
         register_menu_item linux-docker '容器操作' 8 '重启容器' linux_docker_change '' restart
@@ -1004,7 +1008,7 @@ register_management_menus() {
         register_menu_item cron '' 3 '查看 systemd 定时器' system_timers
     fi
     if $has_cron; then
-        register_main_tool "$group" 46 '计划任务' system_cron_menu
+        register_menu_item main "$group" 46 '计划任务' system_cron_menu
     fi
 }
 
@@ -1072,10 +1076,10 @@ register_builtin_menus() {
 
     register_management_menus
     if [[ -f "$script_dir/ops.d/products.py" ]] && command -v python3 >/dev/null 2>&1; then
-        register_main_tool '通用运维' 47 '产品管理' products_menu '发现已部署产品'
+        register_menu_item main '通用运维' 47 '产品管理' products_menu '发现已部署产品'
     fi
     if command -v wget >/dev/null 2>&1; then
-        register_menu_item main "$system_group" 31 '安装宝塔面板' install_bt_panel
+        register_menu_item main '宝塔面板' 131 '安装宝塔面板' install_bt_panel
     fi
     if command -v apt-get >/dev/null 2>&1; then
         register_menu_item main "$system_group" 32 '更新系统包索引' update_system_packages 'apt-get update'
@@ -1085,12 +1089,12 @@ register_builtin_menus() {
         register_menu_item main "$system_group" 34 '升级全局 npm' update_npm '12.0.1'
     fi
     if installed_ops; then
-        register_main_tool "$system_group" 35 '升级运维工作台' update_ops_menu 'ops update'
+        register_menu_item main "$system_group" 35 '升级运维工作台' update_ops_menu 'ops update'
     fi
 }
 
 load_extensions() {
-    local extension
+    local extension loading_local_extensions="${2:-false}"
     for extension in "$1"/*.sh; do
         [[ -f "$extension" ]] || continue
         if ! source "$extension"; then
@@ -1133,7 +1137,8 @@ main() {
     if [[ "${OPS_LOAD_PROJECTS:-1}" != 0 ]]; then
         load_extensions "$script_dir/ops.d" || return 1
     fi
-    load_extensions "$extension_dir" || return 1
+    load_extensions "$extension_dir" true || return 1
+    assign_legacy_main_numbers
 
     while true; do
         show_main

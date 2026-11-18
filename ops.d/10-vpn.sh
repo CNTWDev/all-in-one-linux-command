@@ -41,11 +41,11 @@ vpn_update_modules() {
     fi
 }
 
-register_menu_item main 'VPN / 升级' 1 '日常升级' vpn_update '智能增量'
-register_menu_item main 'VPN / 升级' 2 '全量重建' vpn_update_all '--all'
-register_menu_item main 'VPN / 升级' 3 '仅升控制台' vpn_update_console '--only console'
-register_menu_item main 'VPN / 升级' 4 '仅升门户' vpn_update_portal '--only portal'
-register_menu_item main 'VPN / 升级' 5 '仅升后端' vpn_update_backend '--only backend'
-register_menu_item main 'VPN / 升级' 6 '仅升节点 Agent' vpn_update_agent '--only agent'
-register_menu_item main 'VPN / 升级' 7 '自定义模块' vpn_update_modules '--only …'
-register_menu_item main 'VPN / 升级' 8 '仅升服务器' vpn_update_server '--no-agent'
+register_menu_item main 'VPN / 升级' 101 '日常升级' vpn_update '智能增量'
+register_menu_item main 'VPN / 升级' 102 '全量重建' vpn_update_all '--all'
+register_menu_item main 'VPN / 升级' 103 '仅升控制台' vpn_update_console '--only console'
+register_menu_item main 'VPN / 升级' 104 '仅升门户' vpn_update_portal '--only portal'
+register_menu_item main 'VPN / 升级' 105 '仅升后端' vpn_update_backend '--only backend'
+register_menu_item main 'VPN / 升级' 106 '仅升节点 Agent' vpn_update_agent '--only agent'
+register_menu_item main 'VPN / 升级' 107 '自定义模块' vpn_update_modules '--only …'
+register_menu_item main 'VPN / 升级' 108 '仅升服务器' vpn_update_server '--no-agent'

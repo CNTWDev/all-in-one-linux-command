@@ -21,6 +21,8 @@ STATE = Path(os.environ.get("OPS_PRODUCTS_DIR") or
              Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
              / "all-in-one-linux-command" / "products").expanduser().resolve()
 MANIFESTS = STATE / "manifests"
+MENU_NUMBERS = STATE / "menu-numbers.json"
+FIRST_PRODUCT_NUMBER = 100
 TYPES = {"string": str, "integer": int, "number": float, "boolean": bool}
 ID = re.compile(r"[a-z0-9][a-z0-9_-]{0,63}\Z")
 KEY = re.compile(r"[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*\Z")
@@ -150,7 +152,10 @@ def write_manifest(product, *, replace=False):
     MANIFESTS.mkdir(parents=True, exist_ok=True, mode=0o700)
     path = MANIFESTS / (product["id"] + ".json")
     with locked(path):
-        require(replace or not path.exists(), "产品 ID 已登记。更新清单时请使用 --replace")
+        exists = path.exists()
+        require(replace or not exists, "产品 ID 已登记。更新清单时请使用 --replace")
+        if not exists:
+            menu_numbers([*registered_ids(), product["id"]])
         atomic_write(path, json_text(product).encode())
 
 
@@ -440,13 +445,37 @@ def remove_product(name):
     print(f"已移除产品登记 {name}")
 
 
+def registered_ids():
+    return sorted(path.stem for path in MANIFESTS.glob("*.json") if ID.fullmatch(path.stem))
+
+
 def products():
-    for path in sorted(MANIFESTS.glob("*.json")):
-        if ID.fullmatch(path.stem):
-            try:
-                yield load(path.stem)
-            except (OpsError, ValueError, OSError) as exc:
-                print(f"无法读取产品 {path.stem} 的清单：{exc}", file=sys.stderr)
+    for name in registered_ids():
+        try:
+            yield load(name)
+        except (OpsError, ValueError, OSError) as exc:
+            print(f"无法读取产品 {name} 的清单：{exc}", file=sys.stderr)
+
+
+def menu_numbers(ids):
+    if not ids:
+        return {}
+    with locked(MENU_NUMBERS):
+        numbers = parse_json(MENU_NUMBERS.read_text(encoding="utf-8")) if MENU_NUMBERS.exists() else {}
+        require(isinstance(numbers, dict) and all(
+            ID.fullmatch(key) and type(value) is int and value >= FIRST_PRODUCT_NUMBER
+            for key, value in numbers.items()
+        ) and len(set(numbers.values())) == len(numbers), "产品菜单编号记录无效")
+        next_number = max(numbers.values(), default=FIRST_PRODUCT_NUMBER - 1) + 1
+        updated = False
+        for name in ids:
+            if name not in numbers:
+                numbers[name] = next_number
+                next_number += 1
+                updated = True
+        if updated:
+            atomic_write(MENU_NUMBERS, json_text(numbers).encode())
+    return numbers
 
 
 def format_for(path, override=None):
@@ -655,17 +684,19 @@ def ask(label):
     return input(label + " > ").strip()
 
 
-def choose(title, options):
+def choose(title, options, *, numbered=()):
+    entries = dict(enumerate(options, start=1))
+    entries.update(numbered)
     print(f"\n{title}")
-    for index, (label, _) in enumerate(options, start=1):
+    for index, (label, _) in entries.items():
         print(f"  [{index:2}]  {label}")
     print("  [ 0]  返回")
     choice = ask("选择")
     if choice == "0" or not choice:
         return None
     require(choice.isascii() and choice.isdecimal() and len(choice) <= 9
-            and 1 <= int(choice) <= len(options), "请选择菜单中的编号")
-    return options[int(choice) - 1][1]
+            and int(choice) in entries, "请选择菜单中的编号")
+    return entries[int(choice)][1]
 
 
 def choose_many(title, entries, default=()):
@@ -978,9 +1009,12 @@ def menu():
     while True:
         options = [("发现已部署产品", ("discover", None)), ("导入产品清单", ("import", None)),
                    ("手动新增产品", ("new", None)), ("安装 TOML 编辑组件", ("setup", None))]
-        options += [(item["name"], ("open", item["id"])) for item in products()]
+        registered = list(products())
+        numbers = menu_numbers([item["id"] for item in registered])
+        numbered = sorted((numbers[item["id"]], (item["name"], ("open", item["id"])))
+                          for item in registered)
         try:
-            choice = choose("产品管理", options)
+            choice = choose("产品管理", options, numbered=numbered)
             if not choice:
                 return
             operation, name = choice

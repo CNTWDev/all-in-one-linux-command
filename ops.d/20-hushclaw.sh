@@ -13,6 +13,6 @@ hushclaw_install_web() {
     run_shell 'curl -fsSL https://raw.githubusercontent.com/CNTWDev/hushclaw-web/master/install.sh | sudo bash'
 }
 
-register_menu_item main HushClaw 11 '安装' hushclaw_install
-register_menu_item main HushClaw 12 '更新' hushclaw_update
-register_menu_item main HushClaw 13 '安装 HushClaw-Web' hushclaw_install_web
+register_menu_item main HushClaw 111 '安装' hushclaw_install
+register_menu_item main HushClaw 112 '更新' hushclaw_update
+register_menu_item main HushClaw 113 '安装 HushClaw-Web' hushclaw_install_web

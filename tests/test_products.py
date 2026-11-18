@@ -175,6 +175,52 @@ printf '%s\\n' "$COMPOSE_PROBE_RESULT"
         self.assertEqual(exported["configs"]["service"]["fields"], {"port": {"type": "integer"}})
         self.assertEqual(self.config.read_bytes(), self.original)
 
+    def test_product_numbers_append_and_survive_updates_and_removals(self):
+        # Start with a product written by an older release, without a numbering file.
+        older = json.loads(self.manifest.read_text())
+        older.update(id="zeta", name="Zeta")
+        manifests = self.state / "manifests"
+        manifests.mkdir(parents=True)
+        (manifests / "zeta.json").write_text(json.dumps(older))
+
+        newer = {**older, "id": "alpha", "name": "Alpha"}
+        self.manifest.write_text(json.dumps(newer))
+        self.invoke("product", "import", self.manifest)
+        output = self.invoke("product", "menu", input_data="101\n0\n0\n")
+        self.assertIn("[100]  Zeta\n  [101]  Alpha", output)
+        self.assertIn("\nAlpha\n", output)
+
+        self.invoke("product", "remove", "zeta")
+        self.manifest.write_text(json.dumps({**newer, "name": "Alpha updated"}))
+        self.invoke("product", "import", self.manifest, "--replace")
+        self.manifest.write_text(json.dumps({**newer, "id": "beta", "name": "Beta"}))
+        self.invoke("product", "import", self.manifest)
+        output = self.invoke("product", "menu", input_data="0\n")
+        self.assertNotIn("[100]", output)
+        self.assertIn("[101]  Alpha updated\n  [102]  Beta", output)
+
+    def test_main_menu_keeps_platform_numbers_ahead_of_product_extensions(self):
+        extensions = Path(self.env["OPS_EXTENSION_DIR"])
+        extensions.mkdir()
+        (extensions / "10-local.sh").write_text("""
+local_example() { printf '%s\\n' 'local extension opened'; }
+register_menu_item main '本机扩展' 350 '新扩展' local_example
+register_menu_item main '本机扩展' 47 '旧扩展' local_example
+register_menu_item main '本机扩展' 247 '固定编号' local_example
+""")
+        self.fake_command("systemctl", "exit 0\n")
+        self.fake_command("wget", "exit 0\n")
+        output = self.invoke(input_data="248\n0\n")
+        first_menu = output.split("local extension opened", 1)[0]
+        numbers = [int(line.strip().split("]")[0][1:]) for line in first_menu.splitlines()
+                   if line.strip().startswith("[") and not line.strip().startswith("[ 0]")]
+        self.assertEqual(numbers, sorted(numbers))
+        for number, label in [(40, "Linux 排障"), (47, "产品管理"), (101, "日常升级"),
+                              (111, "安装"), (124, "配置管理"), (131, "安装宝塔面板"),
+                              (247, "固定编号"), (248, "旧扩展"), (350, "新扩展")]:
+            self.assertIn(f"[{number}]  {label}", output)
+        self.assertIn("local extension opened", output)
+
 
 if __name__ == "__main__":
     unittest.main()

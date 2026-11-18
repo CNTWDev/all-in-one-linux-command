@@ -240,15 +240,15 @@ aistudy_install_theme() {
     run_shell "$command"
 }
 
-register_menu_item main AIStudy 21 '安装' aistudy_install
-register_menu_item main AIStudy 22 '升级' aistudy_upgrade
+register_menu_item main AIStudy 121 '安装' aistudy_install
+register_menu_item main AIStudy 122 '升级' aistudy_upgrade
 if command -v systemctl >/dev/null 2>&1; then
-    register_menu_item main AIStudy 23 '重启' aistudy_restart
+    register_menu_item main AIStudy 123 '重启' aistudy_restart
 fi
-register_menu_item main AIStudy 24 '配置管理' aistudy_config_menu
+register_menu_item main AIStudy 124 '配置管理' aistudy_config_menu
 if command -v systemctl >/dev/null 2>&1; then
-    register_menu_item main AIStudy 25 '安装主题' aistudy_install_theme
-    register_menu_item main AIStudy 26 '服务状态' aistudy_service_status
+    register_menu_item main AIStudy 125 '安装主题' aistudy_install_theme
+    register_menu_item main AIStudy 126 '服务状态' aistudy_service_status
 fi
 
 register_menu_item aistudy-config '' 1 'LLM 大模型配置' aistudy_config_llm
