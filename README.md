@@ -37,7 +37,7 @@ ops update
 | **44 系统设置** | 改主机名和时区、切换 NTP、查看日志占用并按天数清理已归档的日志 |
 | **45 软件包** | 用 APT 或 DNF 查看、安装和卸载指定包，以及刷新索引 |
 | **46 计划任务** | 查看或编辑当前用户的 crontab，查看 systemd 定时器 |
-| **47 产品管理** | 新增产品、登记命令、绑定配置、编辑字段和恢复备份 |
+| **47 产品管理** | 发现已部署产品、导入发布清单、管理产品命令和配置 |
 
 入口按本机命令可用性显示。如果扩展已占用 `35` 或 `41`–`47` 中的编号，新通用入口会使用其他空闲编号。服务、容器、系统设置和防火墙变更会先显示完整命令，输入 `y` 执行。需要管理员权限的通用操作在非 root 账户下使用本机的 `sudo`。容器操作和 crontab 操作使用启动 `ops` 的账户。
 
@@ -71,20 +71,57 @@ Docker、systemd、DNS / HTTP 和 `nc`、`lsof`、`iostat` 等工具的入口随
 
 ## 给不同服务器加菜单
 
-打开 **47 产品管理**，可通过向导新增产品，随后登记命令或绑定机器上的配置文件。产品管理需要 Python 3.8 或以上版本。JSON 配置可直接编辑，TOML 首次使用时选「安装 TOML 编辑组件」，或运行 `ops product setup`。
+### 已经部署的产品：从服务器发现
+
+在目标服务器打开 **`ops` → 47 产品管理 → 发现已部署产品**。选一个你知道的入口：
+
+| 你知道什么 | 选这个入口 | `ops` 能找到什么 |
+| --- | --- | --- |
+| 服务名或关键词，比如 `nginx` | 本机 systemd 服务 | 匹配服务、状态和日志命令、可选重启，以及服务声明的工作目录和配置目录 |
+| 用 Docker Compose 部署，忘了文件放哪 | 已部署 Compose 项目 | Docker 当前登记的项目名和 Compose 文件，保留多文件顺序，生成状态和日志命令 |
+| 安装目录，比如 `/srv/myapp` | 部署目录 / 产品发布清单 | 随包附带的运维清单，或者目录内的配置、Compose 文件和脚本候选 |
+
+选择命令、配置文件和要管理的字段，然后保存。在配置选择阶段可以补充这个产品的其他绝对路径，例如 `/etc/myapp/server.json` 和 `/var/lib/myapp/options.toml`。自定义备份或升级命令可以在产品菜单用「新增命令」登记，每条命令都有自己的工作目录。
+
+发现功能在服务器上运行，不需要 AI 或 API Key。它读取部署元数据，在指定目录内有限扫描，输出路径和候选命令，不会执行发现的脚本或修改配置。目录发现不会扫描整个系统，也不跟随目录中的符号链接。扫描结果仅覆盖本机能访问的文件；容器内未挂载到宿主机的文件需要另外处理。YAML、INI、CONF 和 env 可以列为线索，目前只支持编辑 JSON 和 TOML。产品管理需要 Python 3.8 或以上版本，TOML 首次使用时运行 `ops product setup`。
+
+可以给脚本、发布流水线或自己使用的 AI 工具输出发现报告：
+
+```bash
+ops product discover --unit myapp.service
+ops product discover --compose myapp-prod
+ops product discover /srv/myapp --config /etc/myapp/server.json > discovery.json
+ops product discover --unit myapp.service --config /etc/myapp/server.json \
+  --manifest myapp --name "My App" > myapp.product.json
+ops product import myapp.product.json --dry-run
+```
+
+普通报告不包含配置值、服务启动参数或环境变量，但会包含服务器路径和服务名。草稿模式登记建议的查询命令和用 `--config` 明确指定的 JSON/TOML 文件，字段权限可随后在菜单中选择。
+
+### 今后发布的产品：随包交付运维清单
+
+在产品发布目录放一份 `ops.product.json`。把备份、升级、健康检查等产品专属命令写进清单，管理员选「部署目录 / 产品发布清单」即可预览和登记，也可在发布流程里调用同一套 CLI：
+
+```bash
+ops product validate /srv/myapp/ops.product.json --directory /srv/myapp
+ops product import /srv/myapp/ops.product.json --directory /srv/myapp --dry-run
+ops product import /srv/myapp/ops.product.json --directory /srv/myapp
+```
+
+`--directory` 使用服务器上的实际部署目录解析相对路径。配合这个参数发布时，清单可以省略 `directory`，同一发布包可部署到不同目录。配置文件和每条命令的 `cwd` 都可以独立使用绝对路径，绝对路径在导入时保持原样。服务器特殊路径可使用自己的清单副本。仅导入可信来源的清单，先查看命令和配置路径；导入本身不会执行产品命令。重新导入已登记的 ID 需显式使用 `--replace`，这会替换该产品当前的登记信息。
 
 产品清单登记文件路径、可管理字段和命令，产品继续使用原配置文件。登记字段后可以查看、新增值或修改值。字段显式设置 `"delete": true` 后才可删除。保存前可预览差异，保存时备份原文件，配置菜单可恢复最近备份。密钥和密码字段在查看和预览时脱敏，可通过终端隐藏输入或 `--stdin` 更新。解除配置登记或移除产品登记只删除菜单记录。
 
 ### 用 AI 生成产品清单
 
-先获取示例和字段结构，再把输出、服务名和要登记的命令交给 AI。字段检查只输出可管理的字段路径和类型。
+把服务器上的发现报告、清单示例和需要管理的字段结构交给你已经在用的 AI，让它生成草稿，再回服务器用 `--dry-run` 检查。自己提供产品专属命令的准确用法，例如项目文档或发布脚本；不要让 AI 猜测升级命令。字段检查只输出字段路径和类型。
 
 ```bash
 ops product template aistudy > aistudy.json
 ops config inspect /opt/aistudy/config/llm.toml --keys-only
 ```
 
-清单的 `schema_version` 为 `1`，包含产品 `id`、`name`、`directory`、`actions` 和 `configs`。配置路径、命令工作目录支持绝对路径或相对于 `directory` 的路径。字段支持点分隔路径和 `string`、`integer`、`number`、`boolean` 四种类型，可用 `secret` 标记需脱敏的字段。命令支持 `systemd.status`、`systemd.restart` 和 `command`。自定义命令用 `argv` 数组登记参数，例如 `["docker", "compose", "ps"]`。查询命令可显式设置 `"change": false`，其余命令在终端确认后执行。凭据通过产品配置提供。
+清单的 `schema_version` 为 `1`，包含产品 `id`、`name`、`directory`、`actions` 和 `configs`。字段支持点分隔路径和 `string`、`integer`、`number`、`boolean` 四种类型，可用 `secret` 标记需脱敏的字段。命令支持 `systemd.status`、`systemd.restart` 和 `command`。自定义命令用 `argv` 数组登记参数，例如 `["docker", "compose", "ps"]`。查询命令可显式设置 `"change": false`，其余命令在终端确认后执行。凭据留在服务器配置里，不要写进发布清单。
 
 ```bash
 ops product validate aistudy.json

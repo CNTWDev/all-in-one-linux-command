@@ -1072,7 +1072,7 @@ register_builtin_menus() {
 
     register_management_menus
     if [[ -f "$script_dir/ops.d/products.py" ]] && command -v python3 >/dev/null 2>&1; then
-        register_main_tool '通用运维' 47 '产品管理' products_menu '登记命令与配置'
+        register_main_tool '通用运维' 47 '产品管理' products_menu '发现已部署产品'
     fi
     if command -v wget >/dev/null 2>&1; then
         register_menu_item main "$system_group" 31 '安装宝塔面板' install_bt_panel
@@ -1119,7 +1119,7 @@ main() {
                 ;;
             1:-h|1:--help)
                 printf 'ops          打开运维菜单\nops update   升级运维工作台\n'
-                printf 'ops product  管理产品清单\nops config   管理产品配置\n'
+                printf 'ops product           管理产品清单\nops product discover  发现已部署产品\nops config            管理产品配置\n'
                 return 0
                 ;;
             *)
