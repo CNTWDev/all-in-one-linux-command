@@ -205,20 +205,23 @@ printf '%s\\n' "$COMPOSE_PROBE_RESULT"
         (extensions / "10-local.sh").write_text("""
 local_example() { printf '%s\\n' 'local extension opened'; }
 register_menu_item main '本机扩展' 350 '新扩展' local_example
-register_menu_item main '本机扩展' 47 '旧扩展' local_example
-register_menu_item main '本机扩展' 247 '固定编号' local_example
+register_menu_item main '本机扩展' 8 '旧扩展' local_example
+register_menu_item main '本机扩展' 208 '固定编号' local_example
 """)
-        self.fake_command("systemctl", "exit 0\n")
-        self.fake_command("wget", "exit 0\n")
-        output = self.invoke(input_data="248\n0\n")
+        for command in ("systemctl", "wget", "ufw", "docker", "hostnamectl",
+                        "apt-get", "apt-cache", "npm"):
+            self.fake_command(command, "exit 0\n")
+        self.env["OPS_INSTALL_LAUNCHER"] = str(self.root / "ops")
+        output = self.invoke(input_data="209\n0\n")
         first_menu = output.split("local extension opened", 1)[0]
         numbers = [int(line.strip().split("]")[0][1:]) for line in first_menu.splitlines()
                    if line.strip().startswith("[") and not line.strip().startswith("[ 0]")]
         self.assertEqual(numbers, sorted(numbers))
-        for number, label in [(40, "Linux 排障"), (47, "产品管理"), (101, "日常升级"),
+        self.assertEqual(numbers[:12], list(range(1, 13)))
+        for number, label in [(1, "Linux 排障"), (8, "产品管理"), (12, "升级运维工作台"), (101, "日常升级"),
                               (111, "安装"), (124, "配置管理"), (131, "安装宝塔面板"),
-                              (247, "固定编号"), (248, "旧扩展"), (350, "新扩展")]:
-            self.assertIn(f"[{number}]  {label}", output)
+                              (208, "固定编号"), (209, "旧扩展"), (350, "新扩展")]:
+            self.assertIn(f"[{number:2}]  {label}", output)
         self.assertIn("local extension opened", output)
 
 

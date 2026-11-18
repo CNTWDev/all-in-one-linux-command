@@ -931,7 +931,7 @@ register_firewall_menus() {
         register_menu_item firewall-nftables '' 3 '检查并应用规则文件' nft_rules_file '' apply
     fi
     if $available; then
-        register_menu_item main "$1" 41 '防火墙' firewall_menu '规则与端口' '返回主菜单'
+        register_menu_item main "$1" 2 '防火墙' firewall_menu '规则与端口' '返回主菜单'
         register_menu_item linux-network '' 3 '防火墙' firewall_menu '' '返回网络与监听'
     fi
 }
@@ -957,7 +957,7 @@ register_system_settings() {
         register_menu_item system-settings '系统日志' 9 '按天数清理归档日志' system_journal_vacuum
     fi
     if $available; then
-        register_menu_item main "$1" 44 '系统设置' system_settings_menu '主机名 / 时区 / 日志'
+        register_menu_item main "$1" 5 '系统设置' system_settings_menu '主机名 / 时区 / 日志'
     fi
 }
 
@@ -969,7 +969,7 @@ register_package_menus() {
     else
         return 0
     fi
-    register_menu_item main "$1" 45 '软件包' system_packages_menu "$package_manager"
+    register_menu_item main "$1" 6 '软件包' system_packages_menu "$package_manager"
     register_menu_item packages '' 1 '查看指定软件包' system_package_action '' info
     register_menu_item packages '' 2 '刷新软件包索引' system_package_refresh
     register_menu_item packages '' 3 '安装指定软件包' system_package_action '' install
@@ -978,10 +978,10 @@ register_package_menus() {
 
 register_management_menus() {
     local group='通用运维' has_cron=false
-    register_menu_item main "$group" 40 'Linux 排障' linux_menu
+    register_menu_item main "$group" 1 'Linux 排障' linux_menu
     register_firewall_menus "$group"
     if command -v systemctl >/dev/null 2>&1; then
-        register_menu_item main "$group" 42 '服务管理' linux_service_menu 'systemd' '返回主菜单'
+        register_menu_item main "$group" 3 '服务管理' linux_service_menu 'systemd' '返回主菜单'
         register_menu_item linux-services '状态与日志' 3 '列出已加载的服务' linux_list_services
         register_menu_item linux-services '服务操作' 4 '启动服务' linux_service_change '' start
         register_menu_item linux-services '服务操作' 5 '停止服务' linux_service_change '' stop
@@ -991,7 +991,7 @@ register_management_menus() {
         register_menu_item linux-services '服务操作' 9 '取消开机启动' linux_service_change '' disable
     fi
     if command -v docker >/dev/null 2>&1; then
-        register_menu_item main "$group" 43 'Docker 容器' linux_docker_menu '' '返回主菜单'
+        register_menu_item main "$group" 4 'Docker 容器' linux_docker_menu '' '返回主菜单'
         register_menu_item linux-docker '容器操作' 6 '启动容器' linux_docker_change '' start
         register_menu_item linux-docker '容器操作' 7 '停止容器' linux_docker_change '' stop
         register_menu_item linux-docker '容器操作' 8 '重启容器' linux_docker_change '' restart
@@ -1008,7 +1008,7 @@ register_management_menus() {
         register_menu_item cron '' 3 '查看 systemd 定时器' system_timers
     fi
     if $has_cron; then
-        register_menu_item main "$group" 46 '计划任务' system_cron_menu
+        register_menu_item main "$group" 7 '计划任务' system_cron_menu
     fi
 }
 
@@ -1076,20 +1076,20 @@ register_builtin_menus() {
 
     register_management_menus
     if [[ -f "$script_dir/ops.d/products.py" ]] && command -v python3 >/dev/null 2>&1; then
-        register_menu_item main '通用运维' 47 '产品管理' products_menu '发现已部署产品'
+        register_menu_item main '通用运维' 8 '产品管理' products_menu '发现已部署产品'
     fi
     if command -v wget >/dev/null 2>&1; then
         register_menu_item main '宝塔面板' 131 '安装宝塔面板' install_bt_panel
     fi
     if command -v apt-get >/dev/null 2>&1; then
-        register_menu_item main "$system_group" 32 '更新系统包索引' update_system_packages 'apt-get update'
-        register_menu_item main "$system_group" 33 '安装 docker-compose-plugin' install_compose_plugin
+        register_menu_item main "$system_group" 9 '更新系统包索引' update_system_packages 'apt-get update'
+        register_menu_item main "$system_group" 10 '安装 docker-compose-plugin' install_compose_plugin
     fi
     if command -v npm >/dev/null 2>&1; then
-        register_menu_item main "$system_group" 34 '升级全局 npm' update_npm '12.0.1'
+        register_menu_item main "$system_group" 11 '升级全局 npm' update_npm '12.0.1'
     fi
     if installed_ops; then
-        register_menu_item main "$system_group" 35 '升级运维工作台' update_ops_menu 'ops update'
+        register_menu_item main "$system_group" 12 '升级运维工作台' update_ops_menu 'ops update'
     fi
 }
 
